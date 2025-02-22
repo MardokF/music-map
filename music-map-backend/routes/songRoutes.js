@@ -1,6 +1,6 @@
 const express = require('express');
 const pool = require('../db');
-
+const { getSpotifyTrackDetails } = require('./spotifyRoutes'); // Import della funzione
 const router = express.Router();
 
 // Aggiungere una canzone alla mappa
@@ -20,26 +20,34 @@ router.post('/add-song', async (req, res) => {
 
 // Votare una canzone
 router.post('/vote', async (req, res) => {
-  const { user_id, song_id, vote } = req.body;
+    const { user_id, song_id, vote } = req.body;
 
-  if (!user_id || !song_id || (vote !== 1 && vote !== -1)) {
-    return res.status(400).json({ error: 'user_id, song_id e vote (1 o -1) sono obbligatori' });
-  }
+    // Controlla che il voto sia +1 o -1
+    if (![1, -1].includes(vote)) {
+        return res.status(400).json({ error: 'Il voto deve essere +1 o -1' });
+    }
 
-  try {
-    const result = await pool.query(
-      `INSERT INTO votes (user_id, song_id, vote) 
-       VALUES ($1, $2, $3) 
-       ON CONFLICT (user_id, song_id) 
-       DO UPDATE SET vote = EXCLUDED.vote 
-       RETURNING *;`,
-      [user_id, song_id, vote]
-    );
+    try {
+        // Controlla se l'utente ha già votato
+        const checkVote = await pool.query(
+            'SELECT * FROM votes WHERE user_id = $1 AND song_id = $2',
+            [user_id, song_id]
+        );
 
-    res.json(result.rows[0]);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+        if (checkVote.rows.length > 0) {
+            return res.status(400).json({ error: 'Hai già votato questa canzone' });
+        }
+
+        // Inserisce il voto
+        const result = await pool.query(
+            'INSERT INTO votes (user_id, song_id, vote) VALUES ($1, $2, $3) RETURNING *',
+            [user_id, song_id, vote]
+        );
+
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Recuperare le canzoni in base alla posizione
@@ -72,5 +80,52 @@ router.get('/songs-nearby', async (req, res) => {
   }
 });
 
+// ?? API: Ottieni canzoni con voti
+router.get('/songs', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT s.*, COALESCE(SUM(v.vote), 0) AS total_votes
+            FROM songs s
+            LEFT JOIN votes v ON s.id = v.song_id
+            GROUP BY s.id
+            ORDER BY total_votes DESC;
+        `);
+
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ?? API: Recupera le canzoni con i dettagli di Spotify e i voti
+router.get('/', async (req, res) => {
+  try {
+
+    // Recupera tutte le canzoni con i voti
+    const result = await pool.query(`
+      SELECT s.*, 
+             COALESCE(SUM(v.vote), 0) AS total_votes
+      FROM songs s
+      LEFT JOIN votes v ON s.id = v.song_id
+      GROUP BY s.id
+      ORDER BY total_votes DESC;
+    `);
+
+    // Recupera i dettagli da Spotify per ogni canzone
+    const songsWithSpotifyDetails = await Promise.all(
+      result.rows.map(async (song) => {
+        const spotifyDetails = await getSpotifyTrackDetails(song.spotify_url);
+        return {
+          ...song,
+          spotify_details: spotifyDetails,
+        };
+      })
+    );
+
+    res.json(songsWithSpotifyDetails);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 module.exports = router;
  
