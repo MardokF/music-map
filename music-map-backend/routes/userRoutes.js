@@ -34,29 +34,36 @@ router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Controlla se l'utente esiste nel database
-    const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    
-    if (user.rows.length === 0) {
-      return res.status(401).json({ error: 'Credenziali non valide' });
+    // ✅ Recupera l'utente dal database
+    const result = await pool.query('SELECT id, username, email, password FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
+
+    if (!user) {
+      return res.status(401).json({ error: 'Email o password errati' });
     }
 
-    // Confronta la password (assumendo che sia hashata con bcrypt)
-    const validPassword = await bcrypt.compare(password, user.rows[0].password);
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Credenziali non valide' });
+    // ✅ Confronta la password usando bcrypt
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ error: 'Email o password errati' });
     }
 
-    // 🔹 GENERAZIONE DEL TOKEN JWT
+    // ✅ Genera il token JWT
     const token = jwt.sign(
-      { id: user.rows[0].id, email: user.rows[0].email },
-      process.env.JWT_SECRET,  // Assicurati di averlo definito nel file .env
-      { expiresIn: '24h' }
+      {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '2h' }
     );
 
-    res.json({ token, user: user.rows[0] });
+    res.json({ token });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Errore durante il login:', error);
+    res.status(500).json({ error: 'Errore del server' });
   }
 });
 

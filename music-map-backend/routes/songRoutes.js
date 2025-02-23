@@ -8,46 +8,55 @@ router.post('/add-song', async (req, res) => {
   const { user_id, song_name, artist, lat, lon, spotify_url } = req.body;
 
   try {
+    // ? Verifica se l'utente ha già aggiunto una canzone in queste coordinate
+    const existingSong = await pool.query(
+      'SELECT * FROM songs WHERE user_id = $1 AND lat = $2 AND lon = $3',
+      [user_id, lat, lon]
+    );
+
+    if (existingSong.rows.length > 0) {
+      return res.status(400).json({ error: 'Hai già aggiunto una canzone in questa posizione' });
+    }
+
+    // ? Inserisci la nuova canzone
     const result = await pool.query(
-      'INSERT INTO songs (user_id, song_name, artist, lat, lon, spotify_url) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      `INSERT INTO songs (user_id, song_name, artist, lat, lon, spotify_url)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [user_id, song_name, artist, lat, lon, spotify_url]
     );
+
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    console.error('Errore nell\'aggiunta della canzone:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Votare una canzone
+
 router.post('/vote', async (req, res) => {
-    const { user_id, song_id, vote } = req.body;
+  const { user_id, song_id, vote } = req.body;
 
-    // Controlla che il voto sia +1 o -1
-    if (![1, -1].includes(vote)) {
-        return res.status(400).json({ error: 'Il voto deve essere +1 o -1' });
+  try {
+    // ? Se voto è 0, rimuovi il voto
+    if (vote === 0) {
+      await pool.query('DELETE FROM votes WHERE user_id = $1 AND song_id = $2', [user_id, song_id]);
+      return res.json({ message: 'Voto rimosso' });
     }
 
-    try {
-        // Controlla se l'utente ha già votato
-        const checkVote = await pool.query(
-            'SELECT * FROM votes WHERE user_id = $1 AND song_id = $2',
-            [user_id, song_id]
-        );
+    // ? Altrimenti, aggiorna o aggiungi il voto
+    const result = await pool.query(
+      `INSERT INTO votes (user_id, song_id, vote)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, song_id)
+       DO UPDATE SET vote = EXCLUDED.vote`,
+      [user_id, song_id, vote]
+    );
 
-        if (checkVote.rows.length > 0) {
-            return res.status(400).json({ error: 'Hai già votato questa canzone' });
-        }
-
-        // Inserisce il voto
-        const result = await pool.query(
-            'INSERT INTO votes (user_id, song_id, vote) VALUES ($1, $2, $3) RETURNING *',
-            [user_id, song_id, vote]
-        );
-
-        res.status(201).json(result.rows[0]);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    res.status(200).json(result.rows[0]);
+  } catch (error) {
+    console.error('Errore nella gestione del voto:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Recuperare le canzoni in base alla posizione
@@ -102,12 +111,12 @@ router.get('/', async (req, res) => {
   try {
 
     // Recupera tutte le canzoni con i voti
-    const result = await pool.query(`
-      SELECT s.*, 
-             COALESCE(SUM(v.vote), 0) AS total_votes
+     const result = await pool.query(`
+      SELECT s.*, u.username AS creator_username, COALESCE(SUM(v.vote), 0) AS total_votes
       FROM songs s
+      JOIN users u ON s.user_id = u.id
       LEFT JOIN votes v ON s.id = v.song_id
-      GROUP BY s.id
+      GROUP BY s.id, u.username
       ORDER BY total_votes DESC;
     `);
 
@@ -127,5 +136,31 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ? Rimuovi canzone (solo se l'utente è il creatore)
+router.delete('/delete-song/:id', async (req, res) => {
+  const { id } = req.params;
+  const { user_id } = req.body; // Passiamo l'ID dell'utente per il controllo
+
+  try {
+    // Verifica se l'utente è il creatore della canzone
+    const song = await pool.query('SELECT user_id FROM songs WHERE id = $1', [id]);
+    if (song.rows.length === 0) {
+      return res.status(404).json({ error: 'Canzone non trovata' });
+    }
+
+    if (song.rows[0].user_id !== user_id) {
+      return res.status(403).json({ error: 'Non hai i permessi per eliminare questa canzone' });
+    }
+
+    // Elimina la canzone
+    await pool.query('DELETE FROM songs WHERE id = $1', [id]);
+    res.json({ message: 'Canzone rimossa con successo' });
+  } catch (error) {
+    console.error('Errore nella rimozione della canzone:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
  

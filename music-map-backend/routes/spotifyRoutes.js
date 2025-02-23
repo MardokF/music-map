@@ -27,6 +27,16 @@ async function getSpotifyAccessToken() {
 async function getSpotifyTrackDetails(spotify_url) {
   try {
     await getSpotifyAccessToken();
+
+    // ? Regex per estrarre l'ID della traccia
+    const regex = /track\/([a-zA-Z0-9]{22})/;
+    const match = spotify_url.match(regex);
+
+    if (!match || !match[1]) {
+      console.error(`? URL Spotify non valido: ${spotify_url}`);
+      return null;
+    }
+
     const trackId = spotify_url.split('/track/')[1].split('?')[0]; // Estrae l'ID della traccia
     const data = await spotifyApi.getTrack(trackId);
 
