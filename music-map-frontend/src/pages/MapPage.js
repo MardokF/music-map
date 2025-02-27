@@ -8,8 +8,11 @@ import { getSongs, addSong, voteSong, deleteSong } from '../api/songs';
 
 const MapPage = () => {
   const [songs, setSongs] = useState([]);
-  const [newLocation, setNewLocation] = useState(null);     // Coordinate dove aggiungere la canzone (clic su mappa o cercate)
-  const [songDetails, setSongDetails] = useState({          // Dettagli della canzone in creazione da mappa o search
+
+  // Coordinate dove aggiungere la canzone (clic su mappa o cercate)
+  const [newLocation, setNewLocation] = useState(null);
+  // Dettagli della canzone in creazione da mappa o search
+  const [songDetails, setSongDetails] = useState({
     song_name: '',
     artist: '',
     spotify_url: ''
@@ -20,9 +23,17 @@ const MapPage = () => {
   const [popupSongArtist, setPopupSongArtist] = useState('');
   const [popupSongUrl, setPopupSongUrl] = useState('');
 
-  const [searchQuery, setSearchQuery] = useState('');       // Testo nella barra di ricerca
-  const [searchResults, setSearchResults] = useState(null); // Popup fullscreen con le canzoni trovate
-  const [searchCoords, setSearchCoords] = useState(null);   // Coordinate del luogo cercato
+  // Testo nella barra di ricerca
+  const [searchQuery, setSearchQuery] = useState('');
+  // Popup fullscreen con le canzoni trovate
+  const [searchResults, setSearchResults] = useState(null);
+  // Coordinate del luogo cercato
+  const [searchCoords, setSearchCoords] = useState(null);
+
+  // Per aggiungere direttamente dal popup di ricerca
+  const [searchSongName, setSearchSongName] = useState('');
+  const [searchSongArtist, setSearchSongArtist] = useState('');
+  const [searchSongUrl, setSearchSongUrl] = useState('');
 
   const { user } = useContext(AuthContext);
 
@@ -62,7 +73,6 @@ const MapPage = () => {
       const lat = parseFloat(newLocation.lat.toFixed(6));
       const lon = parseFloat(newLocation.lon.toFixed(6));
 
-      // Dati per il backend
       const newSong = {
         user_id: user?.id,
         song_name: songDetails.song_name,
@@ -119,27 +129,48 @@ const MapPage = () => {
   };
 
   // ? Votare o rimuovere il voto
-  const handleVote = async (song_id, vote) => {
-    try {
-      // Cerca la canzone per capire se l'utente ha già votato
-      const existingSong = songs.find(s => s.id === song_id);
-      const existingVote = existingSong?.user_vote || 0;
+const handleVote = async (song_id, vote) => {
+  try {
+    console.log(`??? Tentativo di voto: song_id=${song_id}, voto=${vote}`); // ?? Debug
 
-      // Se l'utente riclicca lo stesso voto, lo rimuoviamo (set a 0)
-      const newVote = (existingVote === vote) ? 0 : vote;
+    // Trova la canzone per capire se l'utente ha già votato
+    const existingSong = songs.find(s => s.id === song_id);
+    const existingVote = existingSong?.user_vote || 0;
 
-      const voteData = {
-        user_id: user?.id,
-        song_id,
-        vote: newVote,
-      };
+    // Se l'utente clicca di nuovo sullo stesso voto, lo rimuoviamo (set a 0)
+    const newVote = (existingVote === vote) ? 0 : vote;
 
-      await voteSong(voteData);
-      fetchAllSongs();
-    } catch (error) {
-      console.error('Errore durante la votazione:', error);
+    const voteData = {
+      user_id: user?.id,
+      song_id,
+      vote: newVote,
+    };
+
+    console.log("?? Invio dati voto:", voteData); // ?? Debug
+
+    await voteSong(voteData);
+
+    // Dopo aver inviato il voto al backend, ricarichiamo i dati reali
+    const updatedSongs = await getSongs(); // ? Otteniamo i dati aggiornati dal backend
+    setSongs(updatedSongs); // ? Aggiorniamo la lista delle canzoni
+
+    // ?? Se il popup di ricerca è aperto, aggiorniamo lo stato con i dati reali
+    if (searchResults) {
+      setSearchResults(prev => ({
+        ...prev,
+        songs: updatedSongs.filter(song =>
+          Math.abs(song.lat - prev.lat) < 0.001 && Math.abs(song.lon - prev.lon) < 0.001
+        )
+      }));
     }
-  };
+
+  } catch (error) {
+    console.error("? Errore durante la votazione:", error.response?.data || error.message);
+  }
+};
+
+
+
 
   // ? Rimuovere una canzone
   const handleDeleteSong = async (song_id) => {
@@ -204,6 +235,47 @@ const MapPage = () => {
       lat: parseFloat(searchCoords.lat),
       lon: parseFloat(searchCoords.lon),
     });
+  };
+
+
+  const handleAddSongFromSearch = async (e) => {
+    e.preventDefault();
+    try {
+      if (!searchResults) {
+        alert("Nessun risultato di ricerca per aggiungere la canzone.");
+        return;
+      }
+
+      if (!searchSongName || !searchSongArtist || !searchSongUrl) {
+        alert("Compila tutti i campi!");
+        return;
+      }
+
+      const lat = parseFloat(searchResults.lat.toFixed(6));
+      const lon = parseFloat(searchResults.lon.toFixed(6));
+
+      const newSong = {
+        user_id: user?.id,
+        song_name: searchSongName,
+        artist: searchSongArtist,
+        lat,
+        lon,
+        spotify_url: searchSongUrl,
+      };
+
+      await addSong(newSong);
+
+      setSearchSongName('');
+      setSearchSongArtist('');
+      setSearchSongUrl('');
+      setSearchResults(null);
+      setSearchCoords(null);
+
+      fetchAllSongs();
+    } catch (error) {
+      console.error("Errore durante l'aggiunta dal popup di ricerca:", error);
+      alert(error.response?.data?.error || "Errore durante l'aggiunta della canzone");
+    }
   };
 
   return (
@@ -371,7 +443,6 @@ const MapPage = () => {
 
           <h2 className="text-2xl font-bold mb-4">{searchResults.name}</h2>
 
-          {/* ?? Canzoni associate al luogo */}
           {searchResults.songs.length > 0 ? (
             searchResults.songs.map((song) => (
               <div key={song.id} className="border-b border-gray-600 pb-4 mb-4">
@@ -416,17 +487,38 @@ const MapPage = () => {
             <p>Nessuna canzone trovata per questo luogo.</p>
           )}
 
-          {/* ? Aggiungi canzone nel luogo cercato */}
+          {/* ? Aggiunta diretta nel popup di ricerca */}
           <div className="mt-4 p-4 border-t border-gray-600">
             <h3 className="text-xl font-bold mb-2">Aggiungi Canzone a {searchResults.name}</h3>
-            <button
-              onClick={handleAddFromSearch}
-              className="bg-blue-700 text-white px-4 py-2 rounded"
-            >
-              Imposta Coordinate
-            </button>
-            {/* Una volta impostate le coordinate, appare il Marker e avvii la form in mappa */}
-            <p className="text-sm mt-1">Poi compila il form nel marker sulla mappa.</p>
+            <form onSubmit={handleAddSongFromSearch}>
+              <input
+                type="text"
+                placeholder="Nome Canzone"
+                value={searchSongName}
+                onChange={(e) => setSearchSongName(e.target.value)}
+                className="w-full p-2 mb-2 text-black"
+                required
+              />
+              <input
+                type="text"
+                placeholder="Artista"
+                value={searchSongArtist}
+                onChange={(e) => setSearchSongArtist(e.target.value)}
+                className="w-full p-2 mb-2 text-black"
+                required
+              />
+              <input
+                type="text"
+                placeholder="Spotify URL"
+                value={searchSongUrl}
+                onChange={(e) => setSearchSongUrl(e.target.value)}
+                className="w-full p-2 mb-2 text-black"
+                required
+              />
+              <button type="submit" className="bg-green-500 px-4 py-2 rounded">
+                Aggiungi ??
+              </button>
+            </form>
           </div>
         </div>
       )}

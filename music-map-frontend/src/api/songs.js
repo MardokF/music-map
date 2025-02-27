@@ -49,5 +49,17 @@ export const deleteSong = async (song_id, user_id) => {
   }
 };
 
+export const getSongsByUser = async (userId) => {
+  try {
+    console.log(`?? Richiesta API per le canzoni di user_id: ${userId}`); // ?? Debug
+    const response = await axios.get(`http://localhost:5000/api/songs/user/${userId}`);
+    console.log("? Risposta ricevuta:", response.data); // ?? Debug
+    return response.data;
+  } catch (error) {
+    console.error('? Errore nel recupero delle canzoni dell’utente:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
 
 

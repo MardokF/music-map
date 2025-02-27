@@ -37,27 +37,53 @@ router.post('/vote', async (req, res) => {
   const { user_id, song_id, vote } = req.body;
 
   try {
-    // ? Se voto è 0, rimuovi il voto
-    if (vote === 0) {
-      await pool.query('DELETE FROM votes WHERE user_id = $1 AND song_id = $2', [user_id, song_id]);
-      return res.json({ message: 'Voto rimosso' });
-    }
+    console.log(`?? Ricevuto voto: user_id=${user_id}, song_id=${song_id}, voto=${vote}`); // ?? Debug
 
-    // ? Altrimenti, aggiorna o aggiungi il voto
-    const result = await pool.query(
-      `INSERT INTO votes (user_id, song_id, vote)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (user_id, song_id)
-       DO UPDATE SET vote = EXCLUDED.vote`,
-      [user_id, song_id, vote]
+    // Controlliamo se l'utente ha già votato questa canzone
+    const existingVote = await pool.query(
+      'SELECT vote FROM votes WHERE user_id = $1 AND song_id = $2',
+      [user_id, song_id]
     );
 
-    res.status(200).json(result.rows[0]);
+    if (existingVote.rows.length > 0) {
+      if (vote === 0) {
+        // Se l'utente rimuove il voto
+        console.log("?? Rimozione voto...");
+        await pool.query(
+          'DELETE FROM votes WHERE user_id = $1 AND song_id = $2',
+          [user_id, song_id]
+        );
+      } else {
+        console.log("? L'utente ha già votato, aggiornamento voto...");
+        await pool.query(
+          'UPDATE votes SET vote = $1 WHERE user_id = $2 AND song_id = $3',
+          [vote, user_id, song_id]
+        );
+      }
+    } else {
+      console.log("? Aggiunta nuovo voto...");
+      await pool.query(
+        'INSERT INTO votes (user_id, song_id, vote) VALUES ($1, $2, $3)',
+        [user_id, song_id, vote]
+      );
+    }
+
+    // Aggiorniamo il numero totale di voti nella tabella songs
+    console.log("?? Aggiornamento totale voti...");
+    await pool.query(
+      'UPDATE songs SET total_votes = (SELECT COALESCE(SUM(vote), 0) FROM votes WHERE song_id = $1) WHERE id = $1',
+      [song_id]
+    );
+
+    res.json({ success: true });
+
   } catch (error) {
-    console.error('Errore nella gestione del voto:', error);
+    console.error("? ERRORE BACKEND VOTO:", error.message);
     res.status(500).json({ error: error.message });
   }
 });
+
+
 
 // Recuperare le canzoni in base alla posizione
 router.get('/songs-nearby', async (req, res) => {
@@ -109,33 +135,23 @@ router.get('/songs', async (req, res) => {
 // ?? API: Recupera le canzoni con i dettagli di Spotify e i voti
 router.get('/', async (req, res) => {
   try {
+    console.log("?? Richiesta API: Recupero tutte le canzoni"); // ?? Debug
 
-    // Recupera tutte le canzoni con i voti
-     const result = await pool.query(`
-      SELECT s.*, u.username AS creator_username, COALESCE(SUM(v.vote), 0) AS total_votes
-      FROM songs s
-      JOIN users u ON s.user_id = u.id
-      LEFT JOIN votes v ON s.id = v.song_id
-      GROUP BY s.id, u.username
-      ORDER BY total_votes DESC;
-    `);
-
-    // Recupera i dettagli da Spotify per ogni canzone
-    const songsWithSpotifyDetails = await Promise.all(
-      result.rows.map(async (song) => {
-        const spotifyDetails = await getSpotifyTrackDetails(song.spotify_url);
-        return {
-          ...song,
-          spotify_details: spotifyDetails,
-        };
-      })
+    const result = await pool.query(
+      `SELECT s.id, s.song_name, s.artist, s.lat, s.lon, s.spotify_url, s.total_votes, u.username AS creator_username 
+      FROM songs s 
+      JOIN users u ON s.user_id = u.id 
+      ORDER BY s.total_votes DESC`
     );
 
-    res.json(songsWithSpotifyDetails);
+    console.log("? Canzoni trovate:", result.rows); // ?? Debug
+    res.json(result.rows);
   } catch (error) {
+    console.error("? ERRORE BACKEND:", error.message); // ?? Debug
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // ? Rimuovi canzone (solo se l'utente è il creatore)
 router.delete('/delete-song/:id', async (req, res) => {
@@ -161,6 +177,27 @@ router.delete('/delete-song/:id', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ? API per ottenere le canzoni aggiunte da un utente specifico
+router.get('/user/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    console.log(`?? Ricerca canzoni per user_id: ${userId}`); // ?? Debug
+
+    const result = await pool.query(
+      'SELECT id, song_name, artist, lat, lon, spotify_url, total_votes FROM songs WHERE user_id = $1',
+      [userId]
+    );
+
+    console.log("? Canzoni trovate:", result.rows); // ?? Debug
+    res.json(result.rows);
+  } catch (error) {
+    console.error("? ERRORE BACKEND:", error.message, error.stack); // ?? Debug dettagliato
+    res.status(500).json({ error: error.message, details: error.stack });
+  }
+});
+
 
 module.exports = router;
  

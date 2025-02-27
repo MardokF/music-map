@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 
+
 const Navbar = () => {
   const { user, logout, isAuthenticated } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -18,11 +19,15 @@ const Navbar = () => {
         <Link to="/map" className="ml-4 hover:text-gray-300">Mappa</Link>
       </div>
 
+
       <div className="flex items-center">
         {isAuthenticated ? (
           <>
-            {/* ? Mostra l'username */}
-            <span className="mr-4">?? {user?.username}</span>
+            <div>
+          <Link to="/profile" className="hover:underline">
+            ?? {user.username}
+          </Link>
+        </div>
             <button
               onClick={handleLogout}
               className="bg-red-500 px-3 py-1 rounded hover:bg-red-600"
