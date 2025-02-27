@@ -1,14 +1,13 @@
 {
   "ExpandedNodes": [
     "",
-    "\\music-map-backend",
-    "\\music-map-backend\\routes",
+    "\\music-map-frontend",
     "\\music-map-frontend\\src",
     "\\music-map-frontend\\src\\api",
     "\\music-map-frontend\\src\\components",
     "\\music-map-frontend\\src\\context",
     "\\music-map-frontend\\src\\pages"
   ],
-  "SelectedNode": "\\music-map-frontend",
+  "SelectedNode": "\\music-map-frontend\\src\\pages\\MapPage_orig.js",
   "PreviewInSolutionExplorer": false
 }
