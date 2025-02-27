@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext } from 'react';
 import AuthContext from '../context/AuthContext';
-import { getSongsByUser } from '../api/songs';
+import { getSongsByUser, deleteSong } from '../api/songs';
 
 const ProfilePage = () => {
   const { user } = useContext(AuthContext);
@@ -10,30 +10,41 @@ const ProfilePage = () => {
 
   // ? Recupera le canzoni aggiunte dall'utente
   useEffect(() => {
-    const fetchUserSongs = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      try {
-        console.log(`?? Caricamento canzoni per l'utente: ${user.id}`); // Debug
-        const data = await getSongsByUser(user.id);
-        console.log("? Canzoni trovate:", data); // Debug
-        setUserSongs(data);
-      } catch (err) {
-        console.error("? Errore nel recupero delle canzoni dell'utente:", err);
-        setError("Errore nel recupero delle canzoni.");
-      }
-      setLoading(false);
-    };
-
     fetchUserSongs();
-  }, [user]);
+  }, []);
 
-  // ? Se il profilo sta ancora caricando
+  const fetchUserSongs = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    try {
+      console.log(`?? Caricamento canzoni per l'utente: ${user.id}`); // Debug
+      const data = await getSongsByUser(user.id);
+      console.log("? Canzoni trovate:", data); // Debug
+      setUserSongs(data);
+    } catch (err) {
+      console.error("? Errore nel recupero delle canzoni dell'utente:", err);
+      setError("Errore nel recupero delle canzoni.");
+    }
+    setLoading(false);
+  };
+
+  // ? Funzione per eliminare una canzone
+  const handleDeleteSong = async (song_id) => {
+    if (!window.confirm("Sei sicuro di voler eliminare questa canzone?")) return;
+    try {
+      console.log(`??? Eliminazione canzone ID: ${song_id}`);
+      await deleteSong(song_id, user?.id);
+      setUserSongs(prevSongs => prevSongs.filter(song => song.id !== song_id)); // ? Rimuove subito la canzone dalla UI
+    } catch (error) {
+      console.error("? Errore nell'eliminazione della canzone:", error);
+      alert("Errore nell'eliminazione della canzone.");
+    }
+  };
+
   if (loading) return <p className="text-center mt-10">? Caricamento in corso...</p>;
 
-  // ? Se l'utente non ha canzoni aggiunte
   if (!loading && userSongs.length === 0)
     return <p className="text-center mt-10">?? Non hai ancora aggiunto nessuna canzone.</p>;
 
@@ -55,12 +66,18 @@ const ProfilePage = () => {
               <a href={song.spotify_url} target="_blank" rel="noreferrer" className="text-blue-500 underline">
                 ?? Ascolta su Spotify
               </a>
+              {/* ?? Pulsante per eliminare la canzone */}
+              <button
+                onClick={() => handleDeleteSong(song.id)}
+                className="bg-red-500 text-white px-3 py-1 rounded ml-4 hover:bg-red-700 transition"
+              >
+                ??? Elimina
+              </button>
             </div>
           );
         })}
       </div>
 
-      {/* ? Messaggio di errore */}
       {error && <p className="text-red-500 text-center mt-4">{error}</p>}
     </div>
   );

@@ -37,6 +37,9 @@ const MapPage = () => {
 
   const { user } = useContext(AuthContext);
 
+    // ?? Stato per il tema della mappa (giorno/notte)
+  const [mapTheme, setMapTheme] = useState("light");
+
   // ?? Carica le canzoni al montaggio del componente
   useEffect(() => {
     fetchAllSongs();
@@ -277,9 +280,29 @@ const handleVote = async (song_id, vote) => {
       alert(error.response?.data?.error || "Errore durante l'aggiunta della canzone");
     }
   };
+  // ?? URL dei tile di OpenStreetMap per i temi chiaro e scuro
+  const mapTileUrl = mapTheme === "light"
+    ? "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"  // ?? Mappa chiara
+    : "https://tiles.wmflabs.org/bw-mapnik/{z}/{x}/{y}.png";  // ?? Mappa scura (Black & White OSM)
+
 
   return (
     <div className="h-screen relative">
+     {/* ?? Pulsanti per cambiare tema della mappa */}
+      <div className="absolute top-4 right-4 z-50 flex space-x-2">
+        <button
+          onClick={() => setMapTheme("light")}
+          className={`px-4 py-2 rounded ${mapTheme === "light" ? "bg-blue-700 text-white" : "bg-gray-200 text-black"} transition`}
+        >
+          ?? Giorno
+        </button>
+        <button
+          onClick={() => setMapTheme("dark")}
+          className={`px-4 py-2 rounded ${mapTheme === "dark" ? "bg-gray-900 text-white" : "bg-gray-200 text-black"} transition`}
+        >
+          ?? Notte
+        </button>
+      </div>
       {/* ?? Barra di ricerca sopra la mappa */}
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex">
         <input
@@ -296,7 +319,7 @@ const handleVote = async (song_id, vote) => {
       </div>
 
       {/* ??? Mappa */}
-      <MapContainer center={[45.4642, 9.1900]} zoom={13} className="h-full z-0">
+      <MapContainer center={[45.4642, 9.1900]} zoom={13} className="h-full z-0" key={mapTheme}>
         <TileLayer
           attribution='© OpenStreetMap contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
