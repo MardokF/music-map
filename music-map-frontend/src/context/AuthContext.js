@@ -1,7 +1,9 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 
+
 const AuthContext = createContext();
+
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -19,6 +21,7 @@ export const AuthProvider = ({ children }) => {
       }
     }
   }, []);
+
 
   const login = (token) => {
     localStorage.setItem('token', token);

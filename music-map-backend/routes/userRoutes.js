@@ -60,7 +60,10 @@ router.post('/login', async (req, res) => {
       { expiresIn: '2h' }
     );
 
-    res.json({ token });
+    res.json({ 
+  token, 
+  user: { id: user.id, username: user.username, email: user.email } 
+});
   } catch (error) {
     console.error('Errore durante il login:', error);
     res.status(500).json({ error: 'Errore del server' });
