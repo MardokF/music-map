@@ -1,16 +1,15 @@
 {
   "ExpandedNodes": [
     "",
-    "\\music-map-backend",
-    "\\music-map-backend\\models",
-    "\\music-map-backend\\routes",
     "\\music-map-frontend",
     "\\music-map-frontend\\src",
+    "\\music-map-frontend\\src\\pages",
     "\\music-map-mobile",
     "\\music-map-mobile\\api",
     "\\music-map-mobile\\context",
-    "\\music-map-mobile\\navigation"
+    "\\music-map-mobile\\navigation",
+    "\\music-map-mobile\\screens",
+    "\\music-map-mobile\\styles"
   ],
-  "SelectedNode": "\\music-map-frontend\\src\\pages\\MapPage.js",
   "PreviewInSolutionExplorer": false
 }

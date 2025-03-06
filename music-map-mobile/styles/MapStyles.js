@@ -1,0 +1,125 @@
+import { StyleSheet } from 'react-native';
+
+const styles = StyleSheet.create({
+  popupContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+    padding: 10,
+    borderRadius: 10,
+    maxHeight: 300,
+  },
+  popupScroll: {
+    maxHeight: 200,
+  },
+  songItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  songTitle: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginBottom: 5,
+  },
+  voteButton: {
+    backgroundColor: 'green',
+    padding: 10,
+    marginTop: 5,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  removeVoteButton: {
+    backgroundColor: 'gray',
+    padding: 10,
+    marginTop: 5,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  deleteButton: {
+    backgroundColor: 'red',
+    padding: 10,
+    marginTop: 5,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  addSongContainer: {
+    marginTop: 10,
+    padding: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+  },
+  addSongTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  input: {
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  addSongButton: {
+    backgroundColor: 'blue',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  searchContainer: {
+    position: 'absolute',
+    top: 10,
+    left: '10%',
+    right: '10%',
+    backgroundColor: 'white',
+    padding: 10,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    elevation: 5,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginRight: 10,
+  },
+  searchButton: {
+    backgroundColor: 'blue',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  searchPopup: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    right: 20,
+    backgroundColor: 'white',
+    padding: 10,
+    borderRadius: 10,
+    elevation: 5,
+  },
+  popupTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  closeButton: {
+    backgroundColor: 'red',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  noSongsText: {
+    fontSize: 16,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+});
+
+export default styles;
