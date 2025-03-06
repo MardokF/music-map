@@ -20,6 +20,18 @@ const ProfileScreen = ({ navigation }) => {
     }
   };
 
+  // ? Funzione per eliminare una canzone
+  const handleDeleteSong = async (song_id) => {
+    try {
+      console.log(`??? Eliminazione canzone ID: ${song_id}`);
+      await deleteSong(song_id, user?.id);
+      setUserSongs(prevSongs => prevSongs.filter(song => song.id !== song_id)); // ? Rimuove subito la canzone dalla UI
+    } catch (error) {
+      console.error("? Errore nell'eliminazione della canzone:", error);
+      alert("Errore nell'eliminazione della canzone.");
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>?? Canzoni aggiunte da {user.username}</Text>
@@ -29,7 +41,7 @@ const ProfileScreen = ({ navigation }) => {
         renderItem={({ item }) => (
           <View style={styles.songItem}>
             <Text>{item.song_name} - {item.artist}</Text>
-            <TouchableOpacity onPress={() => deleteSong(item.id)}>
+            <TouchableOpacity onPress={() => handleDeleteSong(item.id)}>
               <Text style={styles.deleteButton}>?? Rimuovi</Text>
             </TouchableOpacity>
           </View>
