@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { View, Text, Modal, Button, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, Modal, Button, TextInput, TouchableOpacity, ScrollView, Linking } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import AuthContext from '../context/AuthContext';
 import { getSongs, addSong, voteSong, deleteSong } from '../api/songs';
 import { useNavigation } from '@react-navigation/native';
 import styles from '../styles/MapStyles';
+
 
 const MapScreen = () => {
   const [songs, setSongs] = useState([]);
@@ -13,7 +14,9 @@ const MapScreen = () => {
   const [newSong, setNewSong] = useState({ song_name: '', artist: '', spotify_url: '' });
   const [newLocation, setNewLocation] = useState(null);
   const [showAddSongModal, setShowAddSongModal] = useState(false);
-  const { user } = useContext(AuthContext);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+  const { user, logout } = useContext(AuthContext);
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -99,6 +102,47 @@ const MapScreen = () => {
     }
   };
 
+   const handleSearch = async () => {
+  try {
+    const encodedQuery = encodeURIComponent(searchQuery.trim());
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodedQuery}`, {
+      headers: {
+        'User-Agent': 'MusicMapApp/1.0 (marco.frau69@example.com)' // ?? Sostituisci con la tua email
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Errore HTTP: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("?? Risultato della ricerca:", data);
+
+    if (data.length > 0) {
+      const { lat, lon, display_name } = data[0];
+      const locationSongs = songs.filter(song => 
+        Math.abs(song.lat - lat) < 0.001 && Math.abs(song.lon - lon) < 0.001
+      );
+
+      setSearchResults({
+        name: display_name,
+        lat: parseFloat(lat),
+        lon: parseFloat(lon),
+        songs: locationSongs
+      });
+    } else {
+      alert("? Nessun risultato trovato.");
+    }
+  } catch (error) {
+    console.error("? Errore durante la ricerca:", error);
+    alert("Errore durante la ricerca. Controlla la connessione o riprova più tardi.");
+  }
+};
+
+const handleListenSong = (song) => {
+  navigation.navigate("VotesScreen", { songUrl: song.spotify_url });
+};
+
   const handleAddSongInline = async (lat, lon) => {
     if (!user) {
       alert("? Devi essere loggato per aggiungere una canzone.");
@@ -139,6 +183,12 @@ const MapScreen = () => {
                 <Text style={{ fontWeight: 'bold' }}>{song.song_name}</Text>
                 <Text>?? {song.artist}</Text>
                 <Text>?? Aggiunto da: {song.creator_username}</Text>
+                <Text 
+                    style={{ color: "green", textDecorationLine: "underline", marginTop: 5 }} 
+                    onPress={() => Linking.openURL(song.spotify_url)}
+                >
+                ?? Ascolta su Spotify
+                </Text>
                 <Text>? {song.total_votes} voti</Text>
                 <TouchableOpacity style={{ backgroundColor: 'green', padding: 10, marginTop: 10 }} onPress={() => handleVote(song.id, 1)}>
                   <Text style={{ color: 'white' }}>?? Vota</Text>
@@ -178,12 +228,29 @@ const MapScreen = () => {
   return (
       
     <View style={{ flex: 1 }}>
+     <View style={{ position: 'absolute', top: 10, left: 10, right: 10, zIndex: 10, backgroundColor: 'white', padding: 10, borderRadius: 10, flexDirection: 'row', alignItems: 'center' }}>
+        <TextInput
+          placeholder="Cerca un luogo (es: Colosseo)"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', padding: 8, borderRadius: 5 }}
+        />
+        <Button title="Cerca" onPress={handleSearch} />
+      </View>
     {/* ?? Pulsante per il profilo */}
       <TouchableOpacity
-        style={{ position: 'absolute', top: 40, right: 20, zIndex: 10, backgroundColor: 'blue', padding: 10, borderRadius: 5 }}
+        style={{ position: 'absolute', top: 80, right: 100, zIndex: 10, backgroundColor: 'blue', padding: 10, borderRadius: 5 }}
         onPress={() => navigation.navigate('ProfileScreen')}
       >
         <Text style={{ color: 'white', fontWeight: 'bold' }}>?? Profilo</Text>
+      </TouchableOpacity>
+      
+    {/* ?? Pulsante per il Logout */}
+      <TouchableOpacity 
+        style={{ position: 'absolute', top: 80, right: 10, zIndex: 10, backgroundColor: 'red', padding: 10, borderRadius: 5 }}
+        onPress={logout}
+      >
+        <Text style={{ color: 'white', fontWeight: 'bold' }}>?? Logout</Text>
       </TouchableOpacity>
       <MapView style={{ flex: 1 }} initialRegion={{ latitude: 45.4642, longitude: 9.1900, latitudeDelta: 0.1, longitudeDelta: 0.1 }}
       onPress={handleMapPress}>
@@ -191,6 +258,37 @@ const MapScreen = () => {
           <Marker key={`${song.lat}-${song.lon}-${index}`} coordinate={{ latitude: parseFloat(song.lat), longitude: parseFloat(song.lon) }} onPress={() => handleMarkerPress(parseFloat(song.lat), parseFloat(song.lon))} />
         ))}
       </MapView>
+      {searchResults && (
+        <Modal visible={true} animationType="slide" transparent={false}>
+          <View style={styles.searchResultsContainer}>
+            <Text style={styles.popupTitle}>{searchResults.name}</Text>
+            <ScrollView>
+              {searchResults.songs.length > 0 ? (
+                searchResults.songs.map((song) => (
+                  <View key={song.id} style={styles.songItem}>
+                    <Text style={styles.songTitle}>{song.song_name} - {song.artist}</Text>
+                    <Text>?? {song.creator_username}</Text>
+                    <Text 
+                         style={{ color: "green", textDecorationLine: "underline", marginTop: 5 }} 
+                        onPress={() => Linking.openURL(song.spotify_url)}
+                    >
+                      ?? Ascolta su Spotify
+                    </Text>
+                    <Text>? {song.total_votes} voti</Text>
+                    <Button title="Vota" onPress={() => handleVote(song.id, 1)} />
+                    <Button title="Non mi piace" onPress={() => handleVote(song.id, -1)} />
+                    {song.user_vote !== 0 && <Button title="Rimuovi Voto" onPress={() => handleVote(song.id, 0)} />}
+                    {user?.username === song.creator_username && <Button title="Rimuovi Canzone" color="red" onPress={() => handleDeleteSong(song.id)} />}
+                  </View>
+                ))
+              ) : (
+                <Text>Nessuna canzone trovata per questo luogo.</Text>
+              )}
+            </ScrollView>
+            <Button title="Chiudi" onPress={() => setSearchResults(null)} />
+          </View>
+        </Modal>
+      )}
       {popupLocation && renderPopup()}
       {newLocation && (
         <View style={styles.newSongContainer}>
@@ -201,7 +299,11 @@ const MapScreen = () => {
           <TouchableOpacity onPress={handleAddSongAtLocation} style={styles.addSongButton}>
             <Text style={{ color: 'white' }}>?? Aggiungi Canzone</Text>
           </TouchableOpacity>
-          <Button title="Chiudi" onPress={() => setShowAddSongModal(false)} />
+          <Button title="Chiudi" onPress={() => { 
+          setShowAddSongModal(false); 
+          setNewLocation(null); 
+        }} />
+
         </View>
         )}
     </View>
