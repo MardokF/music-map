@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { View, Text, Modal, Button, TextInput, TouchableOpacity, ScrollView, Linking } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE  } from 'react-native-maps';
 import AuthContext from '../context/AuthContext';
 import { getSongs, addSong, voteSong, deleteSong } from '../api/songs';
 import { useNavigation } from '@react-navigation/native';
@@ -18,10 +18,47 @@ const MapScreen = () => {
   const [searchResults, setSearchResults] = useState(null);
   const { user, logout } = useContext(AuthContext);
   const navigation = useNavigation();
+  const [mapTheme, setMapTheme] = useState('light');
 
   useEffect(() => {
     fetchAllSongs();
   }, []);
+
+  const fetchSpotifyToken = async () => {
+  const clientId = '6ba89b0fdd14421099493bd2a188e4e7';
+  const clientSecret = '1403967ce7044f218a2f9c85fb219901';
+
+  const response = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+    },
+    body: 'grant_type=client_credentials',
+  });
+
+  const data = await response.json();
+  return data.access_token;
+};
+
+const searchSpotifyTracks = async (query) => {
+  try {
+    const token = await fetchSpotifyToken();
+    const response = await fetch(
+      `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    const data = await response.json();
+    return data.tracks.items;
+  } catch (error) {
+    console.error('Errore nella ricerca su Spotify:', error);
+    return [];
+  }
+};
+
 
   const fetchAllSongs = async () => {
     try {
@@ -139,6 +176,20 @@ const MapScreen = () => {
   }
 };
 
+const handleThemeChange = (theme) => {
+    setMapTheme(theme);
+  };
+
+  const darkMapStyle = [
+    { elementType: "geometry", stylers: [{ color: "#212121" }] },
+    { elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
+    { elementType: "labels.text.stroke", stylers: [{ color: "#212121" }] },
+    { featureType: "road", elementType: "geometry", stylers: [{ color: "#383838" }] },
+    { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#8a8a8a" }] },
+    { featureType: "water", elementType: "geometry", stylers: [{ color: "#000000" }] },
+    { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#3d3d3d" }] },
+  ];
+
 const handleListenSong = (song) => {
   navigation.navigate("VotesScreen", { songUrl: song.spotify_url });
 };
@@ -252,7 +303,28 @@ const handleListenSong = (song) => {
       >
         <Text style={{ color: 'white', fontWeight: 'bold' }}>?? Logout</Text>
       </TouchableOpacity>
-      <MapView style={{ flex: 1 }} initialRegion={{ latitude: 45.4642, longitude: 9.1900, latitudeDelta: 0.1, longitudeDelta: 0.1 }}
+
+      {/* Pulsanti Giorno/Notte */}
+      <View style={{ position: 'absolute', top: 80, left: 20, zIndex: 10 }}>
+        <TouchableOpacity
+          style={{ backgroundColor: mapTheme === 'light' ? 'yellow' : 'gray', padding: 10, marginBottom: 5, borderRadius: 5 }}
+          onPress={() => handleThemeChange('light')}
+        >
+          <Text style={{ color: 'black', fontWeight: 'bold' }}>?? Giorno</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ backgroundColor: mapTheme === 'dark' ? 'black' : 'gray', padding: 10, borderRadius: 5 }}
+          onPress={() => handleThemeChange('dark')}
+        >
+          <Text style={{ color: 'white', fontWeight: 'bold' }}>?? Notte</Text>
+        </TouchableOpacity>
+      </View>
+
+      <MapView  
+      provider={PROVIDER_GOOGLE}
+        style={{ flex: 1 }} 
+        initialRegion={{ latitude: 45.4642, longitude: 9.1900, latitudeDelta: 0.1, longitudeDelta: 0.1 }}
+        customMapStyle={mapTheme === 'dark' ? darkMapStyle : []}
       onPress={handleMapPress}>
         {songs.map((song, index) => (
           <Marker key={`${song.lat}-${song.lon}-${index}`} coordinate={{ latitude: parseFloat(song.lat), longitude: parseFloat(song.lon) }} onPress={() => handleMarkerPress(parseFloat(song.lat), parseFloat(song.lon))} />
