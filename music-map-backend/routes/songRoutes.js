@@ -135,7 +135,7 @@ router.get('/songs', async (req, res) => {
 });
 
 // ?? API: Recupera le canzoni con i dettagli di Spotify e i voti
-router.get('/', async (req, res) => {
+/*router.get('/', async (req, res) => {
   try {
     console.log("?? Richiesta API: Recupero tutte le canzoni"); // ?? Debug
 
@@ -152,7 +152,7 @@ router.get('/', async (req, res) => {
     console.error("? ERRORE BACKEND:", error.message); // ?? Debug
     res.status(500).json({ error: error.message });
   }
-});
+});*/
 
 
 // ? Rimuovi canzone (solo se l'utente è il creatore)
