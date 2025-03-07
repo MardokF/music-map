@@ -140,7 +140,7 @@ router.get('/', async (req, res) => {
     console.log("?? Richiesta API: Recupero tutte le canzoni"); // ?? Debug
 
     const result = await pool.query(
-       'SELECT * FROM songs'
+       "SELECT * FROM songs"
       /*`SELECT s.id, s.song_name, s.artist, s.lat, s.lon, s.spotify_url, s.total_votes, u.username AS creator_username 
       FROM songs s 
       JOIN users u ON s.user_id = u.id 
