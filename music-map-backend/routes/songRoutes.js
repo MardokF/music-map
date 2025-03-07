@@ -128,7 +128,8 @@ router.get('/songs', async (req, res) => {
 
         res.json(result.rows);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+       console.error("? ERRORE BACKEND:", error);
+    res.status(500).json({ error: "Errore nel recupero delle canzoni" });
     }
 });
 
