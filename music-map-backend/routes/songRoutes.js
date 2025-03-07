@@ -117,6 +117,7 @@ router.get('/songs-nearby', async (req, res) => {
 
 // ?? API: Ottieni canzoni con voti
 router.get('/songs', async (req, res) => {
+    console.log("?? [DEBUG] Ricevuta richiesta GET /api/songs");
     try {
         const result = await pool.query(`
             SELECT s.*, COALESCE(SUM(v.vote), 0) AS total_votes
@@ -125,7 +126,7 @@ router.get('/songs', async (req, res) => {
             GROUP BY s.id
             ORDER BY total_votes DESC;
         `);
-
+        console.log("? [DEBUG] Query eseguita, risultati:", result.rows);
         res.json(result.rows);
     } catch (error) {
        console.error("? ERRORE BACKEND:", error);
