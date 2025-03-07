@@ -5,6 +5,8 @@ import AuthContext from '../context/AuthContext';
 import { getSongs, addSong, voteSong, deleteSong } from '../api/songs';
 import { useNavigation } from '@react-navigation/native';
 import styles from '../styles/MapStyles';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 
 const MapScreen = () => {
@@ -60,14 +62,20 @@ const searchSpotifyTracks = async (query) => {
 };
 
 
-  const fetchAllSongs = async () => {
+const fetchAllSongs = async () => {
     try {
-      const data = await getSongs();
-      setSongs(data);
+        const cachedSongs = await AsyncStorage.getItem('songsCache');
+        if (cachedSongs) {
+            setSongs(JSON.parse(cachedSongs)); // Usa i dati cache immediatamente
+        }
+
+        const data = await getSongs();
+        setSongs(data);
+        await AsyncStorage.setItem('songsCache', JSON.stringify(data)); // Aggiorna la cache
     } catch (error) {
-      console.error('? Errore nel recupero delle canzoni:', error);
+        console.error('? Errore nel recupero delle canzoni:', error);
     }
-  };
+};
 
   const handleMarkerPress = (lat, lon) => {
     console.log(`?? Hai cliccato su un marker: ${lat}, ${lon}`);
@@ -93,16 +101,21 @@ const searchSpotifyTracks = async (query) => {
 
   const handleVote = async (song_id, vote) => {
     try {
-      const existingSong = songs.find(s => s.id === song_id);
-      const existingVote = existingSong?.user_vote || 0;
-      const newVote = (existingVote === vote) ? 0 : vote;
-      const voteData = { user_id: user?.id, song_id, vote: newVote };
-      await voteSong(voteData);
-      fetchAllSongs();
+        setSongs(prevSongs => 
+            prevSongs.map(song =>
+                song.id === song_id
+                    ? { ...song, total_votes: (song.user_vote === vote ? song.total_votes - vote : song.total_votes + (vote - song.user_vote)), user_vote: (song.user_vote === vote ? 0 : vote) }
+                    : song
+            )
+        );
+
+        const voteData = { user_id: user?.id, song_id, vote: vote === songs.find(s => s.id === song_id)?.user_vote ? 0 : vote };
+        await voteSong(voteData);
+        fetchAllSongs(); // Mantieni il fetch per sicurezza, ma i dati vengono aggiornati subito
     } catch (error) {
-      console.error('? Errore durante la votazione:', error);
+        console.error('? Errore durante la votazione:', error);
     }
-  };
+};
 
   const handleDeleteSong = async (song_id) => {
     try {
@@ -133,7 +146,6 @@ const searchSpotifyTracks = async (query) => {
       await addSong(songData);
       setNewSong({ song_name: '', artist: '', spotify_url: '' });
       setNewLocation(null);
-      fetchAllSongs();
     } catch (error) {
       alert(error.response?.data?.error || '? Errore nell’aggiunta della canzone');
     }
