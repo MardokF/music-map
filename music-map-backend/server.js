@@ -39,5 +39,21 @@ async function getSpotifyAccessToken() {
   }
 }
 
+const { Pool } = require('pg');
+require('dotenv').config();
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+pool.connect()
+  .then(() => console.log("? Connesso a PostgreSQL!"))
+  .catch(err => console.error("? Errore di connessione al database:", err));
+
+module.exports = pool;
+
 // Ottenere il token all'avvio del server
 getSpotifyAccessToken();
