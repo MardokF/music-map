@@ -134,7 +134,7 @@ router.get('/songs', async (req, res) => {
     }
 });
 
-router.get('/songs', async (req, res) => {
+router.get('/', async (req, res) => {
     console.log("?? [DEBUG] Ricevuta richiesta GET /api/songs");
     try {
         const result = await pool.query(`
