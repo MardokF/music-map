@@ -1,5 +1,5 @@
 const express = require('express');
-const pool = require('../server');
+const pool = require('../db');
 const { getSpotifyTrackDetails } = require('./spotifyRoutes'); // Import della funzione
 const router = express.Router();
 
@@ -137,20 +137,23 @@ router.get('/songs', async (req, res) => {
 router.get('/', async (req, res) => {
     console.log("?? [DEBUG] Ricevuta richiesta GET /api/songs");
     try {
-        const result = await pool.query(`
+        const client = await pool.connect(); // ?? Apriamo connessione sicura
+        const result = await client.query(`
             SELECT s.*, COALESCE(SUM(v.vote), 0) AS total_votes
             FROM songs s
             LEFT JOIN votes v ON s.id = v.song_id
             GROUP BY s.id
             ORDER BY total_votes DESC;
         `);
+        client.release(); // ?? Rilasciamo connessione!
         console.log("? [DEBUG] Query eseguita, risultati:", result.rows);
         res.json(result.rows);
     } catch (error) {
-        console.error("? [DEBUG] ERRORE BACKEND:", error.message, error.stack); // Aggiungiamo il log dettagliato
-        res.status(500).json({ error: error.message, details: error.stack }); // Ora ritorniamo l'errore reale
+        console.error("? [DEBUG] ERRORE BACKEND:", error.message, error.stack);
+        res.status(500).json({ error: error.message, details: error.stack });
     }
 });
+
 
 
 // ?? API: Recupera le canzoni con i dettagli di Spotify e i voti
