@@ -134,17 +134,35 @@ router.get('/songs', async (req, res) => {
     }
 });
 
+router.get('/songs', async (req, res) => {
+    console.log("?? [DEBUG] Ricevuta richiesta GET /api/songs");
+    try {
+        const result = await pool.query(`
+            SELECT s.*, COALESCE(SUM(v.vote), 0) AS total_votes
+            FROM songs s
+            LEFT JOIN votes v ON s.id = v.song_id
+            GROUP BY s.id
+            ORDER BY total_votes DESC;
+        `);
+        console.log("? [DEBUG] Query eseguita, risultati:", result.rows);
+        res.json(result.rows);
+    } catch (error) {
+        console.error("? [DEBUG] ERRORE BACKEND:", error.message, error.stack); // Aggiungiamo il log dettagliato
+        res.status(500).json({ error: error.message, details: error.stack }); // Ora ritorniamo l'errore reale
+    }
+});
+
+
 // ?? API: Recupera le canzoni con i dettagli di Spotify e i voti
-router.get('/', async (req, res) => {
+/*router.get('/', async (req, res) => {
   try {
     console.log("?? Richiesta API: Recupero tutte le canzoni"); // ?? Debug
 
     const result = await pool.query(
-       "SELECT * FROM songs"
-      /*`SELECT s.id, s.song_name, s.artist, s.lat, s.lon, s.spotify_url, s.total_votes, u.username AS creator_username 
+       `SELECT s.id, s.song_name, s.artist, s.lat, s.lon, s.spotify_url, s.total_votes, u.username AS creator_username 
       FROM songs s 
       JOIN users u ON s.user_id = u.id 
-      ORDER BY s.total_votes DESC`*/
+      ORDER BY s.total_votes DESC`
     );
 
     console.log("? Canzoni trovate:", result.rows); // ?? Debug
@@ -153,7 +171,7 @@ router.get('/', async (req, res) => {
     console.error("? ERRORE BACKEND:", error.message); // ?? Debug
     res.status(500).json({ error: error.message });
   }
-});
+});*/
 
 
 // ? Rimuovi canzone (solo se l'utente è il creatore)
