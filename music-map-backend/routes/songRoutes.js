@@ -1,5 +1,6 @@
 const express = require('express');
-const pool = require('../db');
+//const pool = require('../db');
+const pool = require('../server');
 const { getSpotifyTrackDetails } = require('./spotifyRoutes'); // Import della funzione
 const router = express.Router();
 
