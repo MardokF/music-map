@@ -160,6 +160,7 @@ const fetchAllSongs = async () => {
       }
     });
 
+
     if (!response.ok) {
       throw new Error(`Errore HTTP: ${response.status}`);
     }
@@ -179,6 +180,19 @@ const fetchAllSongs = async () => {
         lon: parseFloat(lon),
         songs: locationSongs
       });
+
+      // Aggiorna lo stato con le canzoni trovate in quella posizione
+  const songsAtLocation = songs.filter(song => 
+    parseFloat(song.lat) === lat && parseFloat(song.lon) === lon
+  );
+
+
+      // Se l'utente non ha già aggiunto una canzone qui, permette di aggiungerne una
+  const userAlreadyAdded = songsAtLocation.some(song => song.user_id === user?.id);
+
+  if (!userAlreadyAdded) {
+    setNewLocation({ latitude: lat, longitude: lon });
+  }
     } else {
       alert("? Nessun risultato trovato.");
     }
@@ -273,6 +287,8 @@ const handleListenSong = (song) => {
             ))}
           </ScrollView>
           
+
+
           {/* ? Aggiungi canzone inline */}
           <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 20 }}>? Aggiungi una Canzone</Text>
           <TextInput placeholder="Nome Canzone" value={newSong.song_name} onChangeText={(text) => setNewSong({ ...newSong, song_name: text })} style={styles.input} />

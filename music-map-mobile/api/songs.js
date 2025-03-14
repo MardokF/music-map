@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // ?? MODIFICA QUESTO URL CON IL TUO IP LOCALE
-const BACKEND_URL = "http://192.168.1.53:5000"; 
+const BACKEND_URL = "https://music-map.onrender.com"; 
 
 // ? Recupera tutte le canzoni dalla mappa
 export const getSongs = async () => {

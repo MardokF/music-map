@@ -1,0 +1,9 @@
+Per generare apk:
+
+1- Mettersi in cartella mobile
+2- Lanciare --> eas build -p android
+3- mettere nella stessa cartella il file .aab con il file bundletool-all-1.18.1.jar
+4- genera key --> keytool -genkeypair -v -keystore my-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias my-key-alias
+5- java -jar bundletool-all-1.18.1.jar build-apks --bundle=my_app.aab --output=my_app.apks --mode=universal --ks=my-release-key.jks --ks-key-alias=my-key-alias --ks-pass=pass:miaPassword
+6- converti il formato del .apks in .zip
+7- Unzip e troverai universal.apk
