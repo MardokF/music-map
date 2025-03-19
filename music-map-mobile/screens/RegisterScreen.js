@@ -16,7 +16,8 @@ const RegisterScreen = () => {
     }
 
     try {
-      const response = await fetch('https://music-map.onrender.com/api/users/register', {
+      //const response = await fetch('https://music-map.onrender.com/api/users/register', {
+      const response = await fetch('http://192.168.1.53:5000//api/users/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, password }),

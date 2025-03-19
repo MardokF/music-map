@@ -13,7 +13,8 @@ const LoginScreen = () => {
 
   const handleLogin = async () => {
     try {
-      const response = await axios.post('https://music-map.onrender.com/api/users/login', { email, password });
+      //const response = await axios.post('https://music-map.onrender.com/api/users/login', { email, password });
+      const response = await axios.post('http://192.168.1.53:5000/api/users/login', { email, password });
       login(response.data.user); // Salva l'utente nel contesto
     } catch (error) {
       Alert.alert('Errore', 'Credenziali non valide');

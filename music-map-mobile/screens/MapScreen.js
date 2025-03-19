@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { View, Text, Modal, Button, TextInput, TouchableOpacity, ScrollView, Linking } from 'react-native';
+import { View, Text, Modal, Button, TextInput, TouchableOpacity, ScrollView, Linking, TouchableWithoutFeedback , Keyboard , FlatList} from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE  } from 'react-native-maps';
 import AuthContext from '../context/AuthContext';
 import { getSongs, addSong, voteSong, deleteSong } from '../api/songs';
 import { useNavigation } from '@react-navigation/native';
 import styles from '../styles/MapStyles';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 
 
 
@@ -18,9 +19,18 @@ const MapScreen = () => {
   const [showAddSongModal, setShowAddSongModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(null);
   const { user, logout } = useContext(AuthContext);
   const navigation = useNavigation();
   const [mapTheme, setMapTheme] = useState('light');
+   const [mapRegion, setMapRegion] = useState({
+    latitude: 45.4642,
+    longitude: 9.1900,
+    latitudeDelta: 0.1,
+    longitudeDelta: 0.1,
+  });
 
   useEffect(() => {
     fetchAllSongs();
@@ -60,7 +70,6 @@ const searchSpotifyTracks = async (query) => {
     return [];
   }
 };
-
 
 const fetchAllSongs = async () => {
     try {
@@ -151,6 +160,52 @@ const fetchAllSongs = async () => {
     }
   };
 
+   const handleSearchChange = async (query) => {
+    setSearchQuery(query);
+    setSelectedLocation(null); // Resetta la selezione se cambi ricerca
+
+    if (query.length > 2) {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query.trim())}`,
+          { headers: { 'User-Agent': 'MusicMapApp/1.0' } }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          setSuggestions(data);
+          setShowSuggestions(true);
+        }
+      } catch (error) {
+        console.error('? Errore nella ricerca:', error);
+      }
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSelectSuggestion = (place) => {
+    setSearchQuery(place.display_name);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setSelectedLocation(place);
+    setMapRegion({
+      latitude: parseFloat(place.lat),
+      longitude: parseFloat(place.lon),
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
+    });
+    Keyboard.dismiss();
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setSelectedLocation(null);
+  };
+
    const handleSearch = async () => {
   try {
     const encodedQuery = encodeURIComponent(searchQuery.trim());
@@ -180,6 +235,7 @@ const fetchAllSongs = async () => {
         lon: parseFloat(lon),
         songs: locationSongs
       });
+
 
       // Aggiorna lo stato con le canzoni trovate in quella posizione
   const songsAtLocation = songs.filter(song => 
@@ -250,79 +306,100 @@ const handleListenSong = (song) => {
   };
 
   const renderPopup = () => (
-    <Modal animationType="slide" transparent={true} visible={popupLocation !== null} onRequestClose={closeModal}>
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-        <View style={{ width: 320, backgroundColor: 'white', padding: 20, borderRadius: 10, alignItems: 'center' }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold' }}>?? Canzoni in questa posizione</Text>
-          <ScrollView style={{ maxHeight: 300, width: '100%' }}>
+    <Modal animationType="fade" transparent={true} visible={popupLocation !== null} onRequestClose={closeModal}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.popupContainer}>
+          <Text style={styles.popupTitle}> Canzoni in questa posizione</Text>
+          <ScrollView style={styles.songList}>
             {selectedSongs.map((song) => (
               <View key={song.id} style={{ borderBottomWidth: 1, borderBottomColor: '#ccc', paddingBottom: 10, marginBottom: 10 }}>
-                <Text style={{ fontWeight: 'bold' }}>{song.song_name}</Text>
-                <Text>?? {song.artist}</Text>
-                <Text>?? Aggiunto da: {song.creator_username}</Text>
+                <Text style={styles.songTitle}>{song.song_name}</Text>
+                <Text style={styles.songArtist}>{song.artist}</Text>
+                <Text>Aggiunto da: {song.creator_username}</Text>
                 <Text 
                     style={{ color: "green", textDecorationLine: "underline", marginTop: 5 }} 
                     onPress={() => Linking.openURL(song.spotify_url)}
                 >
-                ?? Ascolta su Spotify
+                Ascolta su Spotify
                 </Text>
-                <Text>? {song.total_votes} voti</Text>
+                <Text style={styles.songVotes}> {song.total_votes} voti</Text>
                 <TouchableOpacity style={{ backgroundColor: 'green', padding: 10, marginTop: 10 }} onPress={() => handleVote(song.id, 1)}>
-                  <Text style={{ color: 'white' }}>?? Vota</Text>
+                  <Text style={{ color: 'white' }}>Vota</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={{ backgroundColor: 'red', padding: 10, marginTop: 10 }} onPress={() => handleVote(song.id, -1)}>
-                  <Text style={{ color: 'white' }}>?? Vota</Text>
+                  <Text style={{ color: 'white' }}>Vota</Text>
                 </TouchableOpacity>
                 {song.user_vote !== 0 && (
                   <TouchableOpacity onPress={() => handleVote(song.id, 0)} style={{ marginTop: 10, backgroundColor: 'gray', padding: 10 }}>
-                    <Text style={{ color: 'white' }}>? Rimuovi Voto</Text>
+                    <Text style={{ color: 'white' }}>Rimuovi Voto</Text>
                   </TouchableOpacity>
                 )}
                 {user?.username === song.creator_username && (
                   <TouchableOpacity onPress={() => handleDeleteSong(song.id)} style={{ marginTop: 10, backgroundColor: 'red', padding: 10 }}>
-                    <Text style={{ color: 'white' }}>??? Rimuovi Canzone</Text>
+                    <Text style={{ color: 'white' }}>Rimuovi Canzone</Text>
                   </TouchableOpacity>
                 )}
               </View>
             ))}
-          </ScrollView>
+          
           
 
 
           {/* ? Aggiungi canzone inline */}
-          <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 20 }}>? Aggiungi una Canzone</Text>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 20 }}>Aggiungi una Canzone</Text>
           <TextInput placeholder="Nome Canzone" value={newSong.song_name} onChangeText={(text) => setNewSong({ ...newSong, song_name: text })} style={styles.input} />
           <TextInput placeholder="Artista" value={newSong.artist} onChangeText={(text) => setNewSong({ ...newSong, artist: text })} style={styles.input} />
           <TextInput placeholder="Spotify URL" value={newSong.spotify_url} onChangeText={(text) => setNewSong({ ...newSong, spotify_url: text })} style={styles.input} />
           <TouchableOpacity onPress={() => handleAddSongInline(popupLocation.lat, popupLocation.lon)} style={styles.addSongButton}>
-            <Text style={{ color: 'white' }}>?? Aggiungi Canzone</Text>
+            <Text style={styles.addSongText}>Aggiungi Canzone</Text>
           </TouchableOpacity>
 
-          <Button title="Chiudi" onPress={closeModal} />
+           <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>Chiudi</Text>
+              </TouchableOpacity>
+          </ScrollView>
+
         </View>
       </View>
     </Modal>
+
   );
 
   return (
-      
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <View style={{ flex: 1 }}>
-     <View style={{ position: 'absolute', top: 10, left: 10, right: 10, zIndex: 10, backgroundColor: 'white', padding: 10, borderRadius: 10, flexDirection: 'row', alignItems: 'center' }}>
+     <View style={styles.searchContainer}>
         <TextInput
-          placeholder="Cerca un luogo (es: Colosseo)"
+          placeholder="Cerca un luogo ..."
           value={searchQuery}
-          onChangeText={setSearchQuery}
-          style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', padding: 8, borderRadius: 5 }}
+          onChangeText={handleSearchChange}
+          onFocus={() => setSuggestions(true)}
+          style={styles.searchInput}
         />
-        <Button title="Cerca" onPress={handleSearch} />
+          <TouchableOpacity onPress={handleSearch} style={styles.searchButton}>
+            <Text style={styles.searchButtonText}>Cerca</Text>
+          </TouchableOpacity>
+        {selectedLocation && (
+            <TouchableOpacity onPress={handleClearSearch} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={20} color="gray" />
+            </TouchableOpacity>
+          )}
       </View>
-    {/* ?? Pulsante per il profilo */}
-      <TouchableOpacity
-        style={{ position: 'absolute', top: 80, right: 100, zIndex: 10, backgroundColor: 'blue', padding: 10, borderRadius: 5 }}
-        onPress={() => navigation.navigate('ProfileScreen')}
-      >
-        <Text style={{ color: 'white', fontWeight: 'bold' }}>?? Profilo</Text>
-      </TouchableOpacity>
+
+      {/* Popup suggerimenti */}
+        {showSuggestions && suggestions.length > 0 && (
+          <View style={styles.suggestionsContainer}>
+            <FlatList
+              data={suggestions}
+              keyExtractor={(item) => item.place_id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.suggestionItem} onPress={() => handleSelectSuggestion(item)}>
+                  <Text>{item.display_name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        )}
       
     {/* ?? Pulsante per il Logout */}
       <TouchableOpacity 
@@ -338,13 +415,13 @@ const handleListenSong = (song) => {
           style={{ backgroundColor: mapTheme === 'light' ? 'yellow' : 'gray', padding: 10, marginBottom: 5, borderRadius: 5 }}
           onPress={() => handleThemeChange('light')}
         >
-          <Text style={{ color: 'black', fontWeight: 'bold' }}>?? Giorno</Text>
+          <Text style={{ color: 'black', fontWeight: 'bold' }}>Giorno</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={{ backgroundColor: mapTheme === 'dark' ? 'black' : 'gray', padding: 10, borderRadius: 5 }}
           onPress={() => handleThemeChange('dark')}
         >
-          <Text style={{ color: 'white', fontWeight: 'bold' }}>?? Notte</Text>
+          <Text style={{ color: 'white', fontWeight: 'bold' }}>Notte</Text>
         </TouchableOpacity>
       </View>
 
@@ -357,7 +434,9 @@ const handleListenSong = (song) => {
         {songs.map((song, index) => (
           <Marker key={`${song.lat}-${song.lon}-${index}`} coordinate={{ latitude: parseFloat(song.lat), longitude: parseFloat(song.lon) }} onPress={() => handleMarkerPress(parseFloat(song.lat), parseFloat(song.lon))} />
         ))}
+
       </MapView>
+      
       {searchResults && (
         <Modal visible={true} animationType="slide" transparent={false}>
           <View style={styles.searchResultsContainer}>
@@ -372,7 +451,7 @@ const handleListenSong = (song) => {
                          style={{ color: "green", textDecorationLine: "underline", marginTop: 5 }} 
                         onPress={() => Linking.openURL(song.spotify_url)}
                     >
-                      ?? Ascolta su Spotify
+                      Ascolta su Spotify
                     </Text>
                     <Text>? {song.total_votes} voti</Text>
                     <Button title="Vota" onPress={() => handleVote(song.id, 1)} />
@@ -389,15 +468,34 @@ const handleListenSong = (song) => {
           </View>
         </Modal>
       )}
+
+      {/* Barra inferiore */}
+      <View style={styles.bottomBar}>
+        <TouchableOpacity>
+          <Ionicons name="home" size={30} color="white" />
+        </TouchableOpacity>
+        <TouchableOpacity>
+          <Ionicons name="search" size={30} color="white" />
+        </TouchableOpacity>
+        <TouchableOpacity>
+          <Ionicons name="heart" size={30} color="white" />
+        </TouchableOpacity>
+        {/* ?? Pulsante per il profilo */}
+        <TouchableOpacity onPress={() => navigation.navigate('ProfileScreen')}>
+          <Ionicons name="person" size={30} color="white" />
+        </TouchableOpacity>
+      </View>
+      
+
       {popupLocation && renderPopup()}
       {newLocation && (
         <View style={styles.newSongContainer}>
-          <Text style={styles.newSongTitle}>? Aggiungi una Canzone</Text>
+          <Text style={styles.newSongTitle}>Aggiungi una Canzone</Text>
           <TextInput placeholder="Nome Canzone" value={newSong.song_name} onChangeText={(text) => setNewSong({ ...newSong, song_name: text })} style={styles.input} />
           <TextInput placeholder="Artista" value={newSong.artist} onChangeText={(text) => setNewSong({ ...newSong, artist: text })} style={styles.input} />
           <TextInput placeholder="Spotify URL" value={newSong.spotify_url} onChangeText={(text) => setNewSong({ ...newSong, spotify_url: text })} style={styles.input} />
           <TouchableOpacity onPress={handleAddSongAtLocation} style={styles.addSongButton}>
-            <Text style={{ color: 'white' }}>?? Aggiungi Canzone</Text>
+            <Text style={{ color: 'white' }}>Aggiungi Canzone</Text>
           </TouchableOpacity>
           <Button title="Chiudi" onPress={() => { 
           setShowAddSongModal(false); 
@@ -407,7 +505,9 @@ const handleListenSong = (song) => {
         </View>
         )}
     </View>
+    </TouchableWithoutFeedback>
   );
 };
 
 export default MapScreen;
+// JavaScript source code

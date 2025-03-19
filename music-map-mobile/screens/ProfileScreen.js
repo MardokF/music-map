@@ -4,7 +4,7 @@ import AuthContext from '../context/AuthContext';
 import { getUserSongs, deleteSong } from '../api/songs';
 
 const ProfileScreen = ({ navigation }) => {
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const [userSongs, setUserSongs] = useState([]);
 
   useEffect(() => {
@@ -23,7 +23,7 @@ const ProfileScreen = ({ navigation }) => {
   // ? Funzione per eliminare una canzone
   const handleDeleteSong = async (song_id) => {
     try {
-      console.log(`??? Eliminazione canzone ID: ${song_id}`);
+      console.log(`Eliminazione canzone ID: ${song_id}`);
       await deleteSong(song_id, user?.id);
       setUserSongs(prevSongs => prevSongs.filter(song => song.id !== song_id)); // ? Rimuove subito la canzone dalla UI
     } catch (error) {
@@ -34,7 +34,7 @@ const ProfileScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>?? Canzoni aggiunte da {user.username}</Text>
+      <Text style={styles.title}>Canzoni aggiunte da {user.username}</Text>
       <FlatList
         data={userSongs}
         keyExtractor={(item) => item.id.toString()}
@@ -44,6 +44,15 @@ const ProfileScreen = ({ navigation }) => {
             <TouchableOpacity onPress={() => handleDeleteSong(item.id)}>
               <Text style={styles.deleteButton}>?? Rimuovi</Text>
             </TouchableOpacity>
+
+                {/* ?? Pulsante per il Logout */}
+      <TouchableOpacity 
+        style={{ position: 'absolute', top: 80, right: 10, zIndex: 10, backgroundColor: 'red', padding: 10, borderRadius: 5 }}
+        onPress={logout}
+      >
+        <Text style={{ color: 'white', fontWeight: 'bold' }}>Logout</Text>
+      </TouchableOpacity>
+
           </View>
         )}
       />
