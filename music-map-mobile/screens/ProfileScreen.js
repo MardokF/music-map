@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import AuthContext from '../context/AuthContext';
 import { getUserSongs, deleteSong } from '../api/songs';
+import styles from '../styles/ProfileStyles';
+import { Ionicons } from '@expo/vector-icons';
 
 const ProfileScreen = ({ navigation }) => {
   const { user, logout } = useContext(AuthContext);
@@ -32,9 +34,28 @@ const ProfileScreen = ({ navigation }) => {
     }
   };
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Sei sicuro di voler uscire?',
+      [
+        { text: 'Annulla', style: 'cancel' },
+        { text: 'Si', onPress: logout }
+      ],
+      { cancelable: true }
+    );
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Canzoni aggiunte da {user.username}</Text>
+    <View style={styles.topBar}>
+  <Text style={styles.profileTitle}>
+    Canzoni aggiunte da {user?.username}
+  </Text>
+  <TouchableOpacity onPress={handleLogout}>
+    <Ionicons name="log-out-outline" size={24} color="black" />
+  </TouchableOpacity>
+</View>
       <FlatList
         data={userSongs}
         keyExtractor={(item) => item.id.toString()}
@@ -45,13 +66,7 @@ const ProfileScreen = ({ navigation }) => {
               <Text style={styles.deleteButton}>?? Rimuovi</Text>
             </TouchableOpacity>
 
-                {/* ?? Pulsante per il Logout */}
-      <TouchableOpacity 
-        style={{ position: 'absolute', top: 80, right: 10, zIndex: 10, backgroundColor: 'red', padding: 10, borderRadius: 5 }}
-        onPress={logout}
-      >
-        <Text style={{ color: 'white', fontWeight: 'bold' }}>Logout</Text>
-      </TouchableOpacity>
+
 
           </View>
         )}
@@ -60,12 +75,6 @@ const ProfileScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#fff' },
-  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 10 },
-  songItem: { padding: 15, backgroundColor: '#ddd', marginBottom: 10, borderRadius: 5 },
-  deleteButton: { color: 'red', fontWeight: 'bold' },
-});
 
 export default ProfileScreen;
 

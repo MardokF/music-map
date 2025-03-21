@@ -16,9 +16,11 @@ const MapScreen = () => {
   const [popupLocation, setPopupLocation] = useState(null);
   const [newSong, setNewSong] = useState({ song_name: '', artist: '', spotify_url: '' });
   const [newLocation, setNewLocation] = useState(null);
+  const [triggeredByMap, setTriggeredByMap] = useState(false);
   const [showAddSongModal, setShowAddSongModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState(null);
+  const [searchVoteFilter, setSearchVoteFilter] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -107,6 +109,7 @@ const fetchAllSongs = async () => {
       longitude: e.nativeEvent.coordinate.longitude,
     });
     setShowAddSongModal(true);
+    setTriggeredByMap(true); // ? attivo solo da mappa
   };
 
   const handleVote = async (song_id, vote_state) => {
@@ -447,7 +450,7 @@ const getFilteredSongs = () => {
 
 
                 </>
-)}
+            )}
            <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
                 <Text style={styles.closeButtonText}>Chiudi</Text>
               </TouchableOpacity>
@@ -494,16 +497,10 @@ const getFilteredSongs = () => {
             />
           </View>
         )}
-      
-    {/* ?? Pulsante per il Logout */}
-      <TouchableOpacity 
-        style={{ position: 'absolute', top: 80, right: 10, zIndex: 10, backgroundColor: 'red', padding: 10, borderRadius: 5 }}
-        onPress={logout}
-      >
-        <Text style={{ color: 'white', fontWeight: 'bold' }}>?? Logout</Text>
-      </TouchableOpacity>
 
-      {/* Pulsanti Giorno/Notte */}
+      {/* PER SVILUPPI FUTURI; PULSANTI GIORNO NOTTE
+
+      { /*Pulsanti Giorno/Notte }
       <View style={{ position: 'absolute', top: 80, left: 20, zIndex: 10 }}>
         <TouchableOpacity
           style={{ backgroundColor: mapTheme === 'light' ? 'yellow' : 'gray', padding: 10, marginBottom: 5, borderRadius: 5 }}
@@ -517,7 +514,7 @@ const getFilteredSongs = () => {
         >
           <Text style={{ color: 'white', fontWeight: 'bold' }}>Notte</Text>
         </TouchableOpacity>
-      </View>
+      </View> */ }
 
       <MapView  
       provider={PROVIDER_GOOGLE}
@@ -535,30 +532,126 @@ const getFilteredSongs = () => {
         <Modal visible={true} animationType="slide" transparent={false}>
           <View style={styles.searchResultsContainer}>
             <Text style={styles.popupTitle}>{searchResults.name}</Text>
+             {/* Pulsanti di filtro */}
+
+             <View style={styles.voteButtonContainer}>
+              {['happy', 'sad', 'adrenalin', 'relaxed'].map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  onPress={() => setSearchVoteFilter(searchVoteFilter === type ? null : type)}
+                  style={[
+                    styles.voteButton,
+                    searchVoteFilter === type
+                      ? styles[`${type}Active`]
+                      : styles[type]
+                  ]}
+                >
+                  <Ionicons
+                    name={
+                      type === 'happy'
+                        ? 'happy-outline'
+                        : type === 'sad'
+                        ? 'sad-outline'
+                        : type === 'adrenalin'
+                        ? 'flash-outline'
+                        : 'leaf-outline'
+                    }
+                    size={20}
+                    color="white"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+        
             <ScrollView>
               {searchResults.songs.length > 0 ? (
-                searchResults.songs.map((song) => (
+                [...searchResults.songs]
+                  .sort((a, b) => {
+                    if (!searchVoteFilter) return 0;
+                    const field = `total_votes_${searchVoteFilter}`;
+                    return (b[field] ?? 0) - (a[field] ?? 0);
+                  })
+                  .map((song) => (
+
                   <View key={song.id} style={styles.songItem}>
                     <Text style={styles.songTitle}>{song.song_name} - {song.artist}</Text>
-                    <Text>?? {song.creator_username}</Text>
+                    <Text>Aggiunto da:  {song.creator_username}</Text>
                     <Text 
                          style={{ color: "green", textDecorationLine: "underline", marginTop: 5 }} 
                         onPress={() => Linking.openURL(song.spotify_url)}
                     >
                       Ascolta su Spotify
                     </Text>
-                    <Text>? {song.total_votes} voti</Text>
-                    <Button title="Vota" onPress={() => handleVote(song.id, 1)} />
-                    <Button title="Non mi piace" onPress={() => handleVote(song.id, -1)} />
+                    <View style={styles.reactionSummary}>
+                  <View style={styles.reactionIconsContainer}>
+                    <View style={[styles.reactionIcon, styles.reactionIconFirst]}>
+                      <Ionicons name="happy-outline" size={14} color="#4CAF50" />
+                    </View>
+                    <View style={[styles.reactionIcon, styles.reactionIconOverlap]}>
+                      <Ionicons name="sad-outline" size={14} color="#F44336" />
+                    </View>
+                    <View style={[styles.reactionIcon, styles.reactionIconOverlap]}>
+                      <Ionicons name="flash-outline" size={14} color="#FF9800" />
+                    </View>
+                    <View style={[styles.reactionIcon, styles.reactionIconOverlap]}>
+                      <Ionicons name="leaf-outline" size={14} color="#2196F3" />
+                    </View>
+                  </View>
+                  <Text style={styles.reactionCountText}>
+                   {(song.total_votes_happy ?? 0) + (song.total_votes_sad ?? 0) + (song.total_votes_adrenalin ?? 0) + (song.total_votes_relaxed ?? 0)}
+                  </Text>
+                </View>
+
+                    <View style={styles.voteButtonContainer}>
+                    <TouchableOpacity 
+                    onPress={() => handleVote(song.id, 'happy')} 
+                    style={[styles.voteButton, song.user_vote === 'happy' ? styles.happyActive : styles.happy]}>
+                    <Ionicons name="happy-outline" size={24} color="white" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    onPress={() => handleVote(song.id, 'sad')} 
+                    style={[styles.voteButton, song.user_vote === 'sad' ? styles.sadActive : styles.sad]}>
+                    <Ionicons name="sad-outline" size={24} color="white" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    onPress={() => handleVote(song.id, 'adrenalin')} 
+                    style={[styles.voteButton, song.user_vote === 'adrenalin' ? styles.adrenalinActive : styles.adrenalin]}>
+                    <Ionicons name="flash-outline" size={24} color="white" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    onPress={() => handleVote(song.id, 'relaxed')} 
+                    style={[styles.voteButton, song.user_vote === 'relaxed' ? styles.relaxedActive : styles.relaxed]}>
+                    <Ionicons name="leaf-outline" size={24} color="white" />
+                  </TouchableOpacity>
+                  </View>
                     {song.user_vote !== 0 && <Button title="Rimuovi Voto" onPress={() => handleVote(song.id, 0)} />}
                     {user?.username === song.creator_username && <Button title="Rimuovi Canzone" color="red" onPress={() => handleDeleteSong(song.id)} />}
                   </View>
+
+                  
                 ))
               ) : (
                 <Text>Nessuna canzone trovata per questo luogo.</Text>
               )}
-            </ScrollView>
+              {!searchResults.songs.some(song => song.creator_username === user?.username) && (
+                        <>
+                      {/* ? Aggiungi canzone inline */}
+                        <Text style={styles.newSongTitle}>Aggiungi una Canzone</Text>
+                      <TextInput placeholder="Nome Canzone" value={newSong.song_name} onChangeText={(text) => setNewSong({ ...newSong, song_name: text })} style={styles.input} />
+                      <TextInput placeholder="Artista" value={newSong.artist} onChangeText={(text) => setNewSong({ ...newSong, artist: text })} style={styles.input} />
+                      <TextInput placeholder="Spotify URL" value={newSong.spotify_url} onChangeText={(text) => setNewSong({ ...newSong, spotify_url: text })} style={styles.input} />
+                      <TouchableOpacity onPress={handleAddSongAtLocation} style={styles.addSongButton}>
+                        <Text style={styles.addSongText}>Aggiungi Canzone</Text>
+                      </TouchableOpacity>
+                        </>
+                      )}
             <Button title="Chiudi" onPress={() => setSearchResults(null)} />
+                      setShowAddSongModal(false); 
+          setNewLocation(null); 
+            </ScrollView>
           </View>
         </Modal>
       )}
@@ -582,7 +675,7 @@ const getFilteredSongs = () => {
       
 
       {popupLocation && renderPopup()}
-      {newLocation && (
+      {newLocation && triggeredByMap &&(
         <View style={styles.newSongContainer}>
           <Text style={styles.newSongTitle}>Aggiungi una Canzone</Text>
           <TextInput placeholder="Nome Canzone" value={newSong.song_name} onChangeText={(text) => setNewSong({ ...newSong, song_name: text })} style={styles.input} />
@@ -594,8 +687,8 @@ const getFilteredSongs = () => {
           <Button title="Chiudi" onPress={() => { 
           setShowAddSongModal(false); 
           setNewLocation(null); 
+          setTriggeredByMap(false); // resetta anche questo!
         }} />
-
         </View>
         )}
     </View>
