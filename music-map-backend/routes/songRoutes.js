@@ -34,37 +34,61 @@ router.post('/add-song', async (req, res) => {
 
 
 router.post('/vote', async (req, res) => {
-  const { user_id, song_id, vote } = req.body;
+  const { user_id, song_id, vote_state } = req.body;
+  const voteMap = {
+    sad: "total_votes_sad",
+    happy: "total_votes_happy",
+    adrenalin: "total_votes_adrenalin",
+    relaxed: "total_votes_relaxed"
+  };
 
   try {
-    console.log(`?? Ricevuto voto: user_id=${user_id}, song_id=${song_id}, voto=${vote}`); // ?? Debug
+    console.log(`?? Ricevuto voto: user_id=${user_id}, song_id=${song_id}, stato=${vote_state}`); // ?? Debug
 
     // Controlliamo se l'utente ha già votato questa canzone
     const existingVote = await pool.query(
-      'SELECT vote FROM votes WHERE user_id = $1 AND song_id = $2',
+      'SELECT vote_state  FROM votes WHERE user_id = $1 AND song_id = $2',
       [user_id, song_id]
     );
 
     if (existingVote.rows.length > 0) {
-      if (vote === 0) {
+        const prev_vote_state = existingVote.rows[0].vote_state;
+
+      if (!vote_state) {
         // Se l'utente rimuove il voto
-        console.log("?? Rimozione voto...");
+        console.log("Rimozione voto...");
         await pool.query(
           'DELETE FROM votes WHERE user_id = $1 AND song_id = $2',
           [user_id, song_id]
         );
-      } else {
-        console.log("? L'utente ha già votato, aggiornamento voto...");
+
         await pool.query(
-          'UPDATE votes SET vote = $1 WHERE user_id = $2 AND song_id = $3',
-          [vote, user_id, song_id]
+          `UPDATE songs SET ${voteMap[prev_vote_state]} = ${voteMap[prev_vote_state]} - 1 WHERE id = $1`,
+          [song_id]
         );
+      } else {
+        console.log("L'utente ha già votato, aggiornamento voto...");
+        await pool.query(
+          'UPDATE votes SET vote_state = $1 WHERE user_id = $2 AND song_id = $3',
+          [vote_state, user_id, song_id]
+        );
+
+await pool.query(
+            `UPDATE songs SET ${voteMap[prev_vote_state]} = ${voteMap[prev_vote_state]} - 1, 
+            ${voteMap[vote_state]} = ${voteMap[vote_state]} + 1 WHERE id = $1`,
+            [song_id]
+          );
       }
     } else {
       console.log("? Aggiunta nuovo voto...");
       await pool.query(
-        'INSERT INTO votes (user_id, song_id, vote) VALUES ($1, $2, $3)',
-        [user_id, song_id, vote]
+        'INSERT INTO votes (user_id, song_id, vote_state) VALUES ($1, $2, $3)',
+        [user_id, song_id, vote_state]
+      );
+
+      await pool.query(
+        `UPDATE songs SET ${voteMap[vote_state]} = ${voteMap[vote_state]} + 1 WHERE id = $1`,
+        [song_id]
       );
     }
 
@@ -161,12 +185,24 @@ router.get('/', async (req, res) => {
   try {
     console.log("?? Richiesta API: Recupero tutte le canzoni"); // ?? Debug
 
-    const result = await pool.query(
+    /*const result = await pool.query(
        `SELECT s.id, s.song_name, s.artist, s.lat, s.lon, s.spotify_url, s.total_votes, u.username AS creator_username 
       FROM songs s 
       JOIN users u ON s.user_id = u.id 
       ORDER BY s.total_votes DESC`
-    );
+    );*/
+
+    const result = await pool.query(`
+      SELECT s.id, s.song_name, s.artist, s.lat, s.lon, s.spotify_url, u.username AS creator_username,
+             COALESCE(s.total_votes_happy, 0) AS total_votes_happy, 
+             COALESCE(s.total_votes_sad, 0) AS total_votes_sad, 
+             COALESCE(s.total_votes_adrenalin, 0) AS total_votes_adrenalin, 
+             COALESCE(s.total_votes_relaxed, 0) AS total_votes_relaxed
+      FROM songs s
+      JOIN users u ON s.user_id = u.id 
+      ORDER BY s.total_votes_happy DESC;
+    `);
+
 
     console.log("? Canzoni trovate:", result.rows); // ?? Debug
     res.json(result.rows);
@@ -222,6 +258,25 @@ router.get('/user/:userId', async (req, res) => {
   }
 });
 
+router.get('/voted/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const result = await pool.query(`
+      SELECT s.*, v.vote_state, u.username AS creator_username
+      FROM votes v
+      JOIN songs s ON v.song_id = s.id
+      JOIN users u ON s.user_id = u.id
+      WHERE v.user_id = $1
+      ORDER BY s.song_name ASC
+    `, [userId]);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Errore nel recupero delle canzoni votate:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = router;
  

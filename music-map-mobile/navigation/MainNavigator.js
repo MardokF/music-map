@@ -5,6 +5,7 @@ import AuthContext from '../context/AuthContext'; // ? Percorso corretto
 import Navigation from './navigation';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
+import VotesScreen from '../screens/VotesScreen';
 
 const Stack = createStackNavigator();
 
@@ -33,6 +34,7 @@ const MainNavigator = () => {
       ) : (
         <Stack.Screen name="LoginScreen" component={LoginScreen} options={{ headerShown: false }} />
       )}
+      <Stack.Screen name="VotesScreen" component={VotesScreen} options={{ title: 'Canzoni Votate' }} />
         <Stack.Screen name="RegisterScreen" component={RegisterScreen} options={{ headerShown: false }} />
       </Stack.Navigator>
   );

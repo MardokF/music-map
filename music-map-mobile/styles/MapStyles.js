@@ -67,12 +67,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 8,
   },
-  voteButton: {
-    backgroundColor: 'green',
-    padding: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
   removeVoteButton: {
     backgroundColor: 'gray',
     padding: 8,
@@ -240,6 +234,93 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
+    voteButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 10
+  },
+  voteButton: {
+    padding: 10,
+    borderRadius: 10,
+    flex: 1,
+    marginHorizontal: 5,
+    alignItems: 'center'
+  },
+  voteText: {
+    color: 'white',
+    fontWeight: 'bold'
+  },
+  emojiText: {
+    fontSize: 24, // Grandezza dell'emoji
+  },
+  happy: {
+    backgroundColor: '#A5D6A7'
+  },
+  happyActive: {
+    backgroundColor: '#4CAF50'
+  },
+  sad: {
+    backgroundColor: '#EF9A9A'
+  },
+  sadActive: {
+    backgroundColor: '#F44336'
+  },
+  adrenalin: {
+    backgroundColor: '#FFCC80'
+  },
+  adrenalinActive: {
+    backgroundColor: '#FF9800'
+  },
+  relaxed: {
+    backgroundColor: '#90CAF9'
+  },
+  relaxedActive: {
+    backgroundColor: '#2196F3'
+  },
+  reactionSummary: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginTop: 8,
+},
+reactionItem: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#f0f0f0',
+  borderRadius: 50,
+  paddingVertical: 4,
+  paddingHorizontal: 8,
+},
+reactionIconsContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginRight: 8,
+},
+reactionIcon: {
+  width: 24,
+  height: 24,
+  borderRadius: 12,
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: 'white',
+  borderWidth: 1,
+  borderColor: '#ddd',
+  zIndex: 1,
+},
+reactionIconFirst: {
+  marginLeft: 0,
+  zIndex: 5,
+},
+reactionIconInner: {
+  fontSize: 14,
+},
+reactionCountText: {
+  fontSize: 14,
+  fontWeight: 'bold'
+},
+reactionIconOverlap: {
+  marginLeft: -8,
+  zIndex: 20,
+},
 });
 
 

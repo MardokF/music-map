@@ -2,11 +2,13 @@
   "ExpandedNodes": [
     "",
     "\\music-map-backend",
+    "\\music-map-backend\\routes",
     "\\music-map-mobile",
     "\\music-map-mobile\\api",
     "\\music-map-mobile\\navigation",
     "\\music-map-mobile\\screens",
     "\\music-map-mobile\\styles"
   ],
+  "SelectedNode": "\\music-map-mobile\\screens\\MapScreen.js",
   "PreviewInSolutionExplorer": false
 }

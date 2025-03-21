@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { View, Text, Modal, Button, TextInput, TouchableOpacity, ScrollView, Linking, TouchableWithoutFeedback , Keyboard , FlatList} from 'react-native';
+import { View, Text, Modal, Button, TextInput, TouchableOpacity, ScrollView, Linking, TouchableWithoutFeedback , Keyboard , FlatList, KeyboardAvoidingView, Platform} from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE  } from 'react-native-maps';
 import AuthContext from '../context/AuthContext';
 import { getSongs, addSong, voteSong, deleteSong } from '../api/songs';
@@ -23,6 +23,7 @@ const MapScreen = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const { user, logout } = useContext(AuthContext);
+  const [filterType, setFilterType] = useState(null);
   const navigation = useNavigation();
   const [mapTheme, setMapTheme] = useState('light');
    const [mapRegion, setMapRegion] = useState({
@@ -108,17 +109,31 @@ const fetchAllSongs = async () => {
     setShowAddSongModal(true);
   };
 
-  const handleVote = async (song_id, vote) => {
-    try {
-        setSongs(prevSongs => 
-            prevSongs.map(song =>
-                song.id === song_id
-                    ? { ...song, total_votes: (song.user_vote === vote ? song.total_votes - vote : song.total_votes + (vote - song.user_vote)), user_vote: (song.user_vote === vote ? 0 : vote) }
-                    : song
-            )
-        );
+  const handleVote = async (song_id, vote_state) => {
 
-        const voteData = { user_id: user?.id, song_id, vote: vote === songs.find(s => s.id === song_id)?.user_vote ? 0 : vote };
+   const voteMap = {
+    sad: 0,
+    happy: 0,
+    adrenalin: 0,
+    relaxed: 0
+  };
+
+  const vote = voteMap[vote_state] || 0;
+
+    try {
+        setSongs(prevSongs =>
+      prevSongs.map(song =>
+        song.id === song_id
+          ? { ...song, total_votes: song.total_votes + (song.user_vote === vote ? -vote : vote), user_vote: song.user_vote === vote ? null : vote_state }
+          : song
+      )
+    );
+
+        const voteData = {
+      user_id: user?.id,
+      song_id,
+      vote_state: songs.find(s => s.id === song_id)?.user_vote === vote_state ? null : vote_state
+    };
         await voteSong(voteData);
         fetchAllSongs(); // Mantieni il fetch per sicurezza, ma i dati vengono aggiornati subito
     } catch (error) {
@@ -305,13 +320,50 @@ const handleListenSong = (song) => {
     }
   };
 
+  // Funzione per ordinare le canzoni in base al filtro selezionato
+const getFilteredSongs = () => {
+  if (!filterType) return selectedSongs;
+  return [...selectedSongs].sort((a, b) => b[filterType] - a[filterType]);
+};
+
   const renderPopup = () => (
+
+
+
     <Modal animationType="fade" transparent={true} visible={popupLocation !== null} onRequestClose={closeModal}>
       <View style={styles.modalOverlay}>
         <View style={styles.popupContainer}>
           <Text style={styles.popupTitle}> Canzoni in questa posizione</Text>
-          <ScrollView style={styles.songList}>
-            {selectedSongs.map((song) => (
+           {/* Pulsanti di filtro */}
+        <View style={styles.voteButtonContainer}>
+          <TouchableOpacity 
+            onPress={() => setFilterType('total_votes_happy')} 
+            style={[styles.voteButton, filterType === 'total_votes_happy' ? styles.happyActive : styles.happy]}>
+            <Ionicons name="happy-outline" size={24} color="white" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={() => setFilterType('total_votes_sad')} 
+            style={[styles.voteButton, filterType === 'total_votes_sad' ? styles.sadActive : styles.sad]}>
+            <Ionicons name="sad-outline" size={24} color="white" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={() => setFilterType('total_votes_adrenalin')} 
+            style={[styles.voteButton, filterType === 'total_votes_adrenalin' ? styles.adrenalinActive : styles.adrenalin]}>
+            <Ionicons name="flash-outline" size={24} color="white" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={() => setFilterType('total_votes_relaxed')} 
+            style={[styles.voteButton, filterType === 'total_votes_relaxed' ? styles.relaxedActive : styles.relaxed]}>
+            <Ionicons name="leaf-outline" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
+
+            <ScrollView style={styles.songList}>
+            {getFilteredSongs().map((song) => (
+
               <View key={song.id} style={{ borderBottomWidth: 1, borderBottomColor: '#ccc', paddingBottom: 10, marginBottom: 10 }}>
                 <Text style={styles.songTitle}>{song.song_name}</Text>
                 <Text style={styles.songArtist}>{song.artist}</Text>
@@ -322,17 +374,55 @@ const handleListenSong = (song) => {
                 >
                 Ascolta su Spotify
                 </Text>
-                <Text style={styles.songVotes}> {song.total_votes} voti</Text>
-                <TouchableOpacity style={{ backgroundColor: 'green', padding: 10, marginTop: 10 }} onPress={() => handleVote(song.id, 1)}>
-                  <Text style={{ color: 'white' }}>Vota</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={{ backgroundColor: 'red', padding: 10, marginTop: 10 }} onPress={() => handleVote(song.id, -1)}>
-                  <Text style={{ color: 'white' }}>Vota</Text>
-                </TouchableOpacity>
-                {song.user_vote !== 0 && (
+                <View style={styles.reactionSummary}>
+                  <View style={styles.reactionIconsContainer}>
+                    <View style={[styles.reactionIcon, styles.reactionIconFirst]}>
+                      <Ionicons name="happy-outline" size={14} color="#4CAF50" />
+                    </View>
+                    <View style={[styles.reactionIcon, styles.reactionIconOverlap]}>
+                      <Ionicons name="sad-outline" size={14} color="#F44336" />
+                    </View>
+                    <View style={[styles.reactionIcon, styles.reactionIconOverlap]}>
+                      <Ionicons name="flash-outline" size={14} color="#FF9800" />
+                    </View>
+                    <View style={[styles.reactionIcon, styles.reactionIconOverlap]}>
+                      <Ionicons name="leaf-outline" size={14} color="#2196F3" />
+                    </View>
+                  </View>
+                  <Text style={styles.reactionCountText}>
+                   {(song.total_votes_happy ?? 0) + (song.total_votes_sad ?? 0) + (song.total_votes_adrenalin ?? 0) + (song.total_votes_relaxed ?? 0)}
+                  </Text>
+                </View>
+                <View style={styles.voteButtonContainer}>
+                  <TouchableOpacity 
+                    onPress={() => handleVote(song.id, 'happy')} 
+                    style={[styles.voteButton, song.user_vote === 'happy' ? styles.happyActive : styles.happy]}>
+                    <Ionicons name="happy-outline" size={24} color="white" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    onPress={() => handleVote(song.id, 'sad')} 
+                    style={[styles.voteButton, song.user_vote === 'sad' ? styles.sadActive : styles.sad]}>
+                    <Ionicons name="sad-outline" size={24} color="white" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    onPress={() => handleVote(song.id, 'adrenalin')} 
+                    style={[styles.voteButton, song.user_vote === 'adrenalin' ? styles.adrenalinActive : styles.adrenalin]}>
+                    <Ionicons name="flash-outline" size={24} color="white" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    onPress={() => handleVote(song.id, 'relaxed')} 
+                    style={[styles.voteButton, song.user_vote === 'relaxed' ? styles.relaxedActive : styles.relaxed]}>
+                    <Ionicons name="leaf-outline" size={24} color="white" />
+                  </TouchableOpacity>
+                  {song.user_vote !== 0 && (
                   <TouchableOpacity onPress={() => handleVote(song.id, 0)} style={{ marginTop: 10, backgroundColor: 'gray', padding: 10 }}>
                     <Text style={{ color: 'white' }}>Rimuovi Voto</Text>
                   </TouchableOpacity>
+                )}
+                </View>
                 )}
                 {user?.username === song.creator_username && (
                   <TouchableOpacity onPress={() => handleDeleteSong(song.id)} style={{ marginTop: 10, backgroundColor: 'red', padding: 10 }}>
@@ -344,7 +434,8 @@ const handleListenSong = (song) => {
           
           
 
-
+        {!selectedSongs.some(song => song.creator_username === user?.username) && (
+            <>
           {/* ? Aggiungi canzone inline */}
           <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 20 }}>Aggiungi una Canzone</Text>
           <TextInput placeholder="Nome Canzone" value={newSong.song_name} onChangeText={(text) => setNewSong({ ...newSong, song_name: text })} style={styles.input} />
@@ -354,6 +445,9 @@ const handleListenSong = (song) => {
             <Text style={styles.addSongText}>Aggiungi Canzone</Text>
           </TouchableOpacity>
 
+
+                </>
+)}
            <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
                 <Text style={styles.closeButtonText}>Chiudi</Text>
               </TouchableOpacity>
@@ -477,7 +571,7 @@ const handleListenSong = (song) => {
         <TouchableOpacity>
           <Ionicons name="search" size={30} color="white" />
         </TouchableOpacity>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('VotesScreen')}>
           <Ionicons name="heart" size={30} color="white" />
         </TouchableOpacity>
         {/* ?? Pulsante per il profilo */}
